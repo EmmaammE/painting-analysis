@@ -5,26 +5,24 @@ import math
 from cbdb_dao import CBDBDAO
 
 app = Flask(__name__)
-CORS(app, support_credentials=True)
+CORS(app)
 
 @app.route("/")
 def hello_world():
     return "<p>Hello, World!</p>"
 
 @app.route("/analysis/network/<name>", methods=['GET'])
-@cross_origin(support_credentials=True)
+@cross_origin(allow_headers="*")
 def getAssocData(name):
   data_csv = pd.read_csv(r'data.csv')
   row = data_csv[data_csv['authorNameCN'] == name]
 
   if len(row) == 0 or math.isnan(row['cid']) == True:
     return  {
-      'data': {
-        'id':'',
-        'id2name': {},
-        'events':[],
-        'id2painter': {}
-      }
+      'id':'',
+      'id2name': {},
+      'events':[],
+      'id2painter': {}
     }
   else:
     id = int(row['cid'])
@@ -47,14 +45,12 @@ def getAssocData(name):
         id2painter[id] = []
 
     return {
-    'data': {
-        'id':id,
-        'id2name': cbdb_dao.cbdbid2name,
-        'events':events,
-        'id2painter': id2painter
-      }
+      'id':id,
+      'id2name': cbdb_dao.cbdbid2name,
+      'events':events,
+      'id2painter': id2painter
     }
 
 
 if __name__ == '__main__':
-  app.run(port=5000, debug=True)
+  app.run(host="127.0.0.1", port=5000, debug=True)
