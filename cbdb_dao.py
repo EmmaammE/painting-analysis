@@ -5,6 +5,7 @@ import numpy as np
 from opencc import OpenCC
 import pandas as pd
 import json
+import csv
 
 assoc_type2event_type = {
   '09': 'kinship',
@@ -24,8 +25,8 @@ class CBDBDAO(SqliteDAO):
       self.cbdbid2name = {}
       self.peopleId = None
   
+  # 根据cbdb的id找到相关信息
   def getCBDBID(self, peopleId):
-    # 根据名字找到CBDB ID ? 还是直接对应ID
     cc = OpenCC('s2t')
     
     sql_str = '''SELECT c_personid,c_name_chn FROM BIOG_MAIN WHERE c_personid = {}'''.format(peopleId)
@@ -86,6 +87,7 @@ class CBDBDAO(SqliteDAO):
         assoc_code_rel[row['c_assoc_code']] = 'others'
     return assoc_code_rel
   
+  # 根据cbdbid找到相关姓名
   def get_people_info(self, pids):
     if(len(pids) == 0):
       return
@@ -170,41 +172,84 @@ class CBDBDAO(SqliteDAO):
       event['desc'] = cc.convert(row['c_assoc_desc_chn'])
       events.append(event)
 
-    json_object = json.dumps({
-      'id': self.peopleId,
-      'id2name': self.cbdbid2name,
-      'events': events
-    },ensure_ascii=False,)
-    with open("sample_qiu.json", "w", encoding='utf-8' ) as outfile:
-      outfile.write(json_object)
+    return events
+
+  def get_all_painter(self):
+    ids =list( self.cbdbid2name.keys())
+    if len(ids) == 0:
+      return []
+    
+    sql_str = '''SELECT biog_main.c_personid FROM BIOG_MAIN 
+      LEFT OUTER JOIN status_data ON status_data.c_personid = biog_main.c_personid
+      WHERE biog_main.c_name_chn in {} and status_data.c_status_code = 71'''.format(
+        tuple(ids) if len(ids) > 1 else "({})".format(ids[0])
+      )
+    rows = self._select(sql_str, ['c_personid'])
+    painter = []
+    for row in rows:
+      painter.append(row['c_personid'])
+    return painter
 
   def get_all_people(self, names):
     cc = OpenCC('s2t')
     names = [cc.convert(name) for name in names]
+    names.sort()
 
-    print(names)
+    # print(names)
 
-    sql_str = '''SELECT c_personid, c_name_chn FROM BIOG_MAIN WHERE c_name_chn in {}'''.format(
+    sql_str = '''SELECT biog_main.c_personid, biog_main.c_name_chn FROM BIOG_MAIN 
+      LEFT OUTER JOIN status_data ON status_data.c_personid = biog_main.c_personid
+      WHERE biog_main.c_name_chn in {} and status_data.c_status_code = 71'''.format(
         tuple(names) if len(names) > 1 else "({})".format(names[0])
       )
     rows = self._select(sql_str, ['c_personid', 'c_name_chn'])
-    json_object = json.dumps(rows, ensure_ascii=False)
-    with open("data.json", "w", encoding='utf-8' ) as outfile:
-      outfile.write(json_object)
+    f = open('id.csv', 'w', encoding='utf-8')
+    csv_write = csv.writer(f)
+    csv_write.writerow(['name', 'c_id'])
+    for row in rows:
+      csv_write.writerow([row['c_name_chn'], row['c_personid']])
+    f.close()
+    # json_object = json.dumps(rows, ensure_ascii=False)
+    # with open("data.json", "w", encoding='utf-8' ) as outfile:
+    #   outfile.write(json_object)
+
+# 在cbdb找到对应的人物的ID
+def get_people_ids():
+  cbdb_dao = CBDBDAO('./database/cbdb20220727.db', use_cache=True)
+  df = pd.read_csv(r'./authorID_authorName_themes.csv')
+  names = df['authorNameCN']
+  cbdb_dao.get_all_people(names)
+
+  cc = OpenCC('s2t')
+  names = [cc.convert(name) for name in names]
+  names.sort()
+
+  # print(names)
+
+  sql_str = '''SELECT DISTINCT c_personid, c_name_chn FROM BIOG_MAIN 
+    WHERE biog_main.c_name_chn in {} '''.format(
+      tuple(names) if len(names) > 1 else "({})".format(names[0])
+    )
+  rows = cbdb_dao._select(sql_str, ['c_personid', 'c_name_chn'])
+  f = open('id2.csv', 'w', encoding='utf-8')
+  csv_write = csv.writer(f)
+  csv_write.writerow(['name', 'c_id'])
+  for row in rows:
+    csv_write.writerow([row['c_name_chn'], row['c_personid']])
+  f.close()
 
 if __name__ == '__main__':
   cbdb_dao = CBDBDAO('./database/cbdb20220727.db', use_cache=True)
 
-  # people = ['3676', '3767'] # Mifu Sushi
-  # people = 1430 # 米芾 苏轼 仇英
-  # people = 1430 # 米芾 苏轼 仇英
-  # people = 3676
-  # people = '张羽'
+  people = 3676 # 米芾
+  # people = 3767 #苏轼
 
-  # cbdb_dao.getCBDBID(people)
-  # cbdb_dao.get_all_assoc_data()
-
-  df = pd.read_csv(r'./authorID_authorName_themes.csv')
-  # names = df['authorNameCN']
-  names= ['苏轼', '仇英']
-  cbdb_dao.get_all_people(names)
+  cbdb_dao.getCBDBID(people)
+  events = cbdb_dao.get_all_assoc_data()
+  json_object = json.dumps({
+    'id': cbdb_dao.peopleId,
+    'id2name': cbdb_dao.cbdbid2name,
+    'events': events
+  },ensure_ascii=False)
+  with open("sample_qiu.json", "w", encoding='utf-8' ) as outfile:
+    outfile.write(json_object)
