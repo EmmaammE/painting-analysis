@@ -1,7 +1,6 @@
 from collections import defaultdict
 
 from base_dao import SqliteDAO
-import numpy as np
 from opencc import OpenCC
 import pandas as pd
 import json

@@ -11,7 +11,7 @@ CORS(app)
 def hello_world():
     return "<p>Hello, World!</p>"
 
-@app.route("/analysis/network/<name>", methods=['GET'])
+@app.route("/painting/analysis/network/<name>", methods=['GET'])
 @cross_origin(allow_headers="*")
 def getAssocData(name):
   data_csv = pd.read_csv(r'data.csv')
@@ -53,4 +53,4 @@ def getAssocData(name):
 
 
 if __name__ == '__main__':
-  app.run(host="127.0.0.1", port=5000, debug=True)
+  app.run(host="127.0.0.1", port=9012, debug=True)

@@ -1,0 +1,5 @@
+Flask==1.1.2
+Flask_Cors==3.0.10
+opencc==1.1.4
+opencc_python_reimplemented==0.1.6
+pandas==1.4.2
