@@ -3,7 +3,7 @@
 
 将数据库文件放在文件夹
 
-./databse/cbdb20220727.db
+./database/cbdb20220727.db
 
 data.csv保存了目前对应的人物的关系
 
